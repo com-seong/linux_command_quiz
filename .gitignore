@@ -3,3 +3,10 @@ quiz_app
 *.o
 *.exe
 
+
+# C 컴파일 실행 파일 제외
+src/quiz
+*.exe
+
+# 점수 기록 폴더 전체 제외
+records/
