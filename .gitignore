@@ -1,0 +1,5 @@
+records/
+quiz_app
+*.o
+*.exe
+
