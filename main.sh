@@ -138,12 +138,6 @@ else
     FINAL_SCORE=0
 fi
 
-# 이 줄이 문제입니다! 화면 출력을 다 먹어버립니다.
-FINAL_SCORE=$("$QUIZ_EXEC" "$QUIZ_PATH")
-if [ $? -ne 0 ]; then
-   # ... 에러 처리 ...
-fi
-
 
 echo "==================================="
 echo "⭐ 획득 점수: $FINAL_SCORE점"
