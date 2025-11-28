@@ -4,13 +4,15 @@
 #include <time.h>
 #include "quiz.h"
 
-// 문자열 끝 엔터 제거 (입력 처리용)
+// 문자열 끝 엔터 제거
 void trim_newline(char *str) {
     int len = strlen(str);
     if (len > 0 && str[len - 1] == '\n') {
         str[len - 1] = '\0';
     }
 }
+
+// [추가됨] 쉘 스크립트가 점수를 읽어갈 수 있도록 숫자만 저장하는 함수
 void save_score_for_shell(int score) {
     FILE *fp = fopen("records/last_score_num.txt", "w");
     if (fp != NULL) {
@@ -18,19 +20,12 @@ void save_score_for_shell(int score) {
         fclose(fp);
     }
 }
-// Git 자동화 및 결과 파일 저장 함수 (요구사항 3, 4)
+
+// Git 자동화 및 결과 파일 저장 함수
 void save_result_and_commit(char *topic, int score, int total, char *log_content) {
-    char filepath[100] = "records/current_score.txt"; // 파트너에게 넘겨줄 점수
     char logpath[100] = "records/history_log.txt";    // Git에 기록할 로그
     
-    // 1. 파트너(Shell)가 읽을 점수 파일 저장
-    FILE *fp_score = fopen(filepath, "w");
-    if (fp_score != NULL) {
-        fprintf(fp_score, "%d/%d", score, total);
-        fclose(fp_score);
-    }
-
-    // 2. Git 기록용 로그 파일 저장 (append 모드)
+    // 1. Git 기록용 로그 파일 저장 (append 모드)
     FILE *fp_log = fopen(logpath, "a");
     if (fp_log != NULL) {
         time_t t = time(NULL);
@@ -42,12 +37,15 @@ void save_result_and_commit(char *topic, int score, int total, char *log_content
         fclose(fp_log);
     }
 
-    // 3. Git 자동 커밋 실행 (System Call)
+    // [추가됨] 쉘 스크립트용 점수 파일 생성 호출
+    save_score_for_shell(score);
+
+    // 2. Git 자동 커밋 실행 (System Call)
     printf("\n[System] 점수 기록을 Git에 저장 중...\n");
     char cmd[512];
     
-    // 기록 파일을 스테이징하고 커밋 (Git이 설치된 환경이어야 함)
-    sprintf(cmd, "git add %s && git commit -m \"Record: %s Quiz Score %d/%d\"", 
+    // [수정됨] git add 뒤에 -f 옵션을 붙여서 무시된 파일도 강제로 넣음!
+    sprintf(cmd, "git add -f %s && git commit -m \"Record: %s Quiz Score %d/%d\"", 
             logpath, topic, score, total);
             
     int result = system(cmd);
@@ -59,16 +57,19 @@ void save_result_and_commit(char *topic, int score, int total, char *log_content
 }
 
 int main(int argc, char *argv[]) {
-    // 인자 확인 (주제, 난이도 - 로깅용)
-    char *topic = (argc > 1) ? argv[1] : "Unknown";
-    // 난이도는 현재 로직에선 파일 경로로 구분되므로 참고용으로만 씀
-
-    // 1. 환경변수에서 문제 파일 경로 가져오기 (요구사항 2)
-    char *file_path = getenv("QUIZ_FILE");
-    if (file_path == NULL) {
-        printf("[Error] 환경변수 QUIZ_FILE이 설정되지 않았습니다.\n");
+    // [수정됨] 환경변수(getenv) 대신 실행 인자(argv)로 파일 경로를 받음
+    // 쉘 스크립트 실행 명령: ./quiz_app [파일경로]
+    if (argc < 2) {
+        printf("[Error] 문제 파일 경로가 전달되지 않았습니다.\n");
         return 1;
     }
+
+    char *file_path = argv[1]; // 첫 번째 인자가 파일 경로
+    char *topic = "Quiz";      // 기본 주제명
+
+    // 파일 경로에서 주제 추측 (로그 기록용)
+    if (strstr(file_path, "git")) topic = "Git";
+    else if (strstr(file_path, "linux")) topic = "Linux";
 
     FILE *fp = fopen(file_path, "r");
     if (fp == NULL) {
@@ -76,7 +77,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // 2. 문제 파싱
+    // 문제 파싱
     QuizItem quiz_list[MAX_Q];
     int count = 0;
     char line[MAX_LINE];
@@ -97,7 +98,7 @@ int main(int argc, char *argv[]) {
     }
     fclose(fp);
 
-    // 3. 퀴즈 진행
+    // 퀴즈 진행
     int score = 0;
     char input[MAX_LINE];
     char log_buffer[4096] = ""; // Git 로그에 남길 상세 내용
@@ -112,7 +113,7 @@ int main(int argc, char *argv[]) {
             if (fgets(input, sizeof(input), stdin) == NULL) break;
             trim_newline(input);
 
-            // 힌트 처리 (요구사항 1)
+            // 힌트 처리
             if (strcmp(input, "hint") == 0) {
                 printf("   [Hint] %s\n\n", quiz_list[i].hint);
                 continue;
@@ -122,15 +123,13 @@ int main(int argc, char *argv[]) {
             if (strcmp(input, quiz_list[i].answer) == 0) {
                 printf("   -> 정답입니다!\n\n");
                 score++;
-                // 로그용 데이터 축적
                 char temp[1024];
-                sprintf(temp, "Q%d: Correct (%s)\n", i+1, quiz_list[i].question);
+                sprintf(temp, "Q%d: Correct\n", i+1);
                 strcat(log_buffer, temp);
             } else {
                 printf("   -> 오답입니다. (정답: %s)\n\n", quiz_list[i].answer);
-                // 로그용 데이터 축적
                 char temp[1024];
-                sprintf(temp, "Q%d: Wrong (Input: %s / Ans: %s)\n", i+1, input, quiz_list[i].answer);
+                sprintf(temp, "Q%d: Wrong\n", i+1);
                 strcat(log_buffer, temp);
             }
             break; // 다음 문제로
@@ -141,7 +140,7 @@ int main(int argc, char *argv[]) {
     printf(" 최종 점수: %d / %d\n", score, count);
     printf("==============================\n");
 
-    // 4. 결과 저장 및 Git 커밋 수행 (요구사항 3, 4)
+    // 결과 저장 및 Git 커밋 수행
     save_result_and_commit(topic, score, count, log_buffer);
 
     return 0;
