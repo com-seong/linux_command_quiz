@@ -11,7 +11,13 @@ void trim_newline(char *str) {
         str[len - 1] = '\0';
     }
 }
-
+void save_score_for_shell(int score) {
+    FILE *fp = fopen("records/last_score_num.txt", "w");
+    if (fp != NULL) {
+        fprintf(fp, "%d", score);
+        fclose(fp);
+    }
+}
 // Git 자동화 및 결과 파일 저장 함수 (요구사항 3, 4)
 void save_result_and_commit(char *topic, int score, int total, char *log_content) {
     char filepath[100] = "records/current_score.txt"; // 파트너에게 넘겨줄 점수
