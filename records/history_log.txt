@@ -22,3 +22,11 @@ Q3: Wrong
 Q4: Correct
 Q5: Wrong
 --------------------------------------------------
+
+[Date: 11-28 23:49] Topic: Linux | Score: 5/5
+Q1: Correct
+Q2: Correct
+Q3: Correct
+Q4: Correct
+Q5: Correct
+--------------------------------------------------
