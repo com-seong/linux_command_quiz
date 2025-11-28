@@ -4,6 +4,10 @@
 #include <time.h>
 #include "quiz.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 // 문자열 끝 엔터 제거
 void trim_newline(char *str) {
     int len = strlen(str);
@@ -57,6 +61,11 @@ void save_result_and_commit(char *topic, int score, int total, char *log_content
 }
 
 int main(int argc, char *argv[]) {
+
+    #ifdef _WIN32
+        SetConsoleOutputCP(65001);
+    #endif
+    
     // [수정됨] 환경변수(getenv) 대신 실행 인자(argv)로 파일 경로를 받음
     // 쉘 스크립트 실행 명령: ./quiz_app [파일경로]
     if (argc < 2) {
